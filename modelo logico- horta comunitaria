@@ -1,0 +1,133 @@
+# Modelo Lógico — Horta Comunitária **Verde Viva**
+
+Este documento descreve o **modelo lógico relacional** do sistema de gestão da Horta Comunitária Verde Viva. Inclui as tabelas, chaves primárias (PK), chaves estrangeiras (FK), relacionamentos e os scripts `CREATE TABLE` prontos para uso no MySQL.
+
+---
+
+## Visão Geral
+O banco controla voluntários, canteiros, espécies, cultivos, colheitas, doações e instituições parceiras. As principais entidades são:
+
+- **Voluntario**
+- **Canteiro**
+- **Especie_de_Planta**
+- **Cultivo** (tabela associativa que resolve N:N entre canteiro e espécie)
+- **Colheita**
+- **Doacao** (associa colheita e instituição)
+- **Instituicao**
+
+---
+
+## Tabelas e Atributos (PK / FK)
+
+### Voluntario
+**PK**: `idVoluntario`  
+Atributos: `nome`, `funcao`, `telefone`, `email`
+
+### Canteiro
+**PK**: `idCanteiro`  
+Atributos: `identificacao`, `localizacao`, `area_m2`, `status`
+
+### Especie_de_Planta
+**PK**: `idEspecie`  
+Atributos: `nome_popular`, `nome_cientifico`, `ciclo`, `tempo_medio_colheita_dias`, `observacoes`
+
+### Cultivo  *(tabela associativa: resolve N:N entre Canteiro e Especie_de_Planta)*
+**PK**: `idCultivo`  
+**FK**: `idVoluntario` → Voluntario(idVoluntario)  
+**FK**: `idCanteiro` → Canteiro(idCanteiro)  
+**FK**: `idEspecie` → Especie_de_Planta(idEspecie)  
+Atributos: `data_plantio`, `quantidade_plantada` (kg), `status`
+
+### Colheita
+**PK**: `idColheita`  
+**FK**: `idCultivo` → Cultivo(idCultivo)  
+Atributos: `data_colheita`, `quantidade_colhida` (kg), `qualidade`, `destino`, `observacoes`
+
+### Instituicao
+**PK**: `idInstituicao`  
+Atributos: `nome`, `responsavel`, `telefone`, `endereco`, `status`
+
+### Doacao  *(associa Colheita e Instituição)*
+**PK**: `idDoacao`  
+**FK**: `idColheita` → Colheita(idColheita)  
+**FK**: `idInstituicao` → Instituicao(idInstituicao)  
+Atributos: `data_doacao`, `quantidade_doada` (kg), `responsavel_entrega`, `observacoes`
+
+---
+
+## Scripts SQL (modelo lógico pronto para MySQL)
+
+```sql
+-- Use ou crie o banco horta_verde_viva antes de executar:
+CREATE DATABASE IF NOT EXISTS horta_verde_viva DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci;
+USE horta_verde_viva;
+
+CREATE TABLE Voluntario (
+  idVoluntario INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  funcao VARCHAR(100),
+  telefone VARCHAR(20),
+  email VARCHAR(100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Canteiro (
+  idCanteiro INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  identificacao VARCHAR(50) NOT NULL,
+  localizacao VARCHAR(100),
+  area_m2 DECIMAL(6,2),
+  status ENUM('Disponível', 'Em uso', 'Em preparo') DEFAULT 'Disponível'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Especie_de_Planta (
+  idEspecie INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nome_popular VARCHAR(100) NOT NULL,
+  nome_cientifico VARCHAR(150),
+  ciclo VARCHAR(50),
+  tempo_medio_colheita_dias INT,
+  observacoes TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Cultivo (
+  idCultivo INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  idVoluntario INT UNSIGNED,
+  idCanteiro INT UNSIGNED,
+  idEspecie INT UNSIGNED,
+  data_plantio DATE NOT NULL,
+  quantidade_plantada DECIMAL(6,2),
+  status ENUM('Em crescimento', 'Colhida', 'Encerrada') DEFAULT 'Em crescimento',
+  FOREIGN KEY (idVoluntario) REFERENCES Voluntario(idVoluntario),
+  FOREIGN KEY (idCanteiro) REFERENCES Canteiro(idCanteiro),
+  FOREIGN KEY (idEspecie) REFERENCES Especie_de_Planta(idEspecie)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Colheita (
+  idColheita INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  idCultivo INT UNSIGNED NOT NULL,
+  data_colheita DATE NOT NULL,
+  quantidade_colhida DECIMAL(6,2) NOT NULL,
+  qualidade ENUM('Ruim', 'Regular', 'Boa', 'Excelente') DEFAULT 'Boa',
+  destino ENUM('Doação', 'Consumo interno', 'Venda') DEFAULT 'Doação',
+  observacoes TEXT,
+  FOREIGN KEY (idCultivo) REFERENCES Cultivo(idCultivo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Instituicao (
+  idInstituicao INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(150) NOT NULL,
+  responsavel VARCHAR(100),
+  telefone VARCHAR(20),
+  endereco VARCHAR(200),
+  status ENUM('Ativa','Inativa') DEFAULT 'Ativa'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE Doacao (
+  idDoacao INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  idColheita INT UNSIGNED NOT NULL,
+  idInstituicao INT UNSIGNED NOT NULL,
+  data_doacao DATE NOT NULL,
+  quantidade_doada DECIMAL(6,2) NOT NULL,
+  responsavel_entrega VARCHAR(100),
+  observacoes TEXT,
+  FOREIGN KEY (idColheita) REFERENCES Colheita(idColheita),
+  FOREIGN KEY (idInstituicao) REFERENCES Instituicao(idInstituicao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
